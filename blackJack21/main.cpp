@@ -21,6 +21,10 @@ struct Player{
 
     int cardSum;
 
+    bool hasSplit;
+
+    int cardSumOnSplit[2];
+
 };
 int blackJackDeck[14];
 Player playersArray[MAX_PLAYERS_AT_TABLE];
@@ -51,18 +55,23 @@ void placeBets(Player&);
 
 void hitDecision(Player&);
 void doubleDownDecision(Player&);
+void splitDecision(Player&);
 
 bool isOver(int);
 int calculateSumOfCards(Player);
 void showCardLetterOrDigit(int);
+void surrenderDecision(Player&);
 
 bool checkBusted(Player);
 bool checkBlackJack(Player);
 bool playerWon(Player);
 
+void playLoop(Player&);
+
 
 int main()
 {
+
     srand(time(NULL));
 
     mainMenu();
@@ -176,9 +185,10 @@ void playGame(int typeOfGame){
             giveFirstCards(playersArray[i]);
         }
 
+
         for(i = 1; i <= numberOfPlayers; ++i){
             playHand(playersArray[i]);
-            clearScreen();
+            //clearScreen();
             playersOut[i] = true;
         }
 
@@ -304,16 +314,22 @@ void playHand(Player& participant){
 
      showCards(participant);
 
+     playLoop(participant);
+
+}
+
+void playLoop(Player& participant){
+
      participant.cardSum = calculateSumOfCards(participant);
 
-     if( checkBlackJack(participant)){
+     if( checkBlackJack(participant) ){
         cout << participant.name << " hit a blackjack ";
         return;
      }
 
      decisionMenu();
 
-     int chosenVal;
+     int chosenVal = -1;
      while(chosenVal != 2){
         chosenVal = getChosenVal(1, 5);
         if(chosenVal == 1){
@@ -330,19 +346,31 @@ void playHand(Player& participant){
         if(chosenVal == 3){
             doubleDownDecision(participant);
             if(checkBusted(participant)){
-                cout << "Player " << participant.name << " is BUSTED";
+                cout << "Player " << participant.name << " is BUSTED\n";
             }
             if(checkBlackJack(participant)){
-                cout << "Player " << participant.name << " hit a blackjack";
+                cout << "Player " << participant.name << " hit a blackjack\n";
             }
             return;
         }
+        if(chosenVal == 4){
+            splitDecision(participant);
+            return;
+        }
+
+        if(chosenVal == 5){
+            surrenderDecision(participant);
+            return;
+        }
+
+        if(chosenVal != 2){
+            decisionMenu();
+        }
 
 
-        decisionMenu();
+
 
      }
-
 
 }
 
@@ -369,10 +397,58 @@ void doubleDownDecision(Player& participant){
 
 }
 
-void split(Player& participant){
+void splitDecision(Player& participant){
+
+    cout << "Player " << participant.name << " " << " decided to split\n";
+
+
+    if(participant.cardsStack[0] != participant.cardsStack[1] || participant.cardsStackTop > 1 || participant.hasSplit){
+        cout << "You cannot split\n";
+        return;
+    }
+
+    if(participant.playerCurrentMoney - participant.currentBet < 0){
+        cout << "You do not have enough money to split\n";
+        return;
+    }
+
+    participant.hasSplit = true;
+
+    int baseOfNextStack = participant.cardsStack[participant.cardsStackTop--];
+    int chosenVal, i;
+
+    addCard(participant);
+    showCards(participant);
+
+    participant.hasSplit = true;
+
+    playLoop(participant);
+    participant.cardSumOnSplit[0] = participant.cardSum;
+
+    resetStack(participant);
+
+    participant.cardsStack[++participant.cardsStackTop] = baseOfNextStack;
+    addCard(participant);
+
+    cout << "-----Split----\n";
+    showCards(participant);
+
+
+    playLoop(participant);
+    participant.cardSumOnSplit[1] = participant.cardSum;
 
 }
 
+void surrenderDecision(Player& participant){
+
+    if(participant.cardsStackTop > 1){
+        cout << "You cannot surrender\n";
+        return;
+    }
+
+    participant.playerCurrentMoney += participant.currentBet /= 2;
+
+}
 
 
 
