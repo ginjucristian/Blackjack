@@ -14,6 +14,7 @@ struct Player{
     char name[MAX_PLAYER_NAME_LENGTH];
     int playerCurrentMoney;
     int playerMaximumEverMoney;
+    int currentBet;
 
     int cardsStack[MAX_POSSIBLE_CARDS_FOR_A_BLACKJACK];
     int cardsStackTop;
@@ -25,10 +26,12 @@ int blackJackDeck[14];
 Player playersArray[MAX_PLAYERS_AT_TABLE];
 bool playersOut[MAX_PLAYERS_AT_TABLE];
 
+int bets[] = {0, 10, 25, 50, 100, 200};
+
 void mainMenu();
 void clearScreen();
 int readValue();
-
+int getChosenVal(int, int);
 
 void choseGame();
 
@@ -36,16 +39,19 @@ void playGame(int);
 void playHand(Player&);
 
 void readPlayerName(Player&);
-void setPlayerMoney(int i);
+void setPlayerMoney(int);
 
 void giveCards(Player&);
 
-void reset(int numOfPlayers);
-void resetStack(Player& participant);
-void giveFirstCards(Player& participant);
+void reset(int);
+void resetStack(Player&);
+void giveFirstCards(Player&);
+void addCard(Player&);
+void placeBets(Player&);
 
-bool isOver(int numberOfPlayers);
-
+bool isOver(int);
+int calculateSumOfCards(Player);
+void showCardLetterOrDigit(int);
 
 int main()
 {
@@ -53,7 +59,7 @@ int main()
 
     mainMenu();
 
-    int chosenValue = readValue();
+    int chosenValue = getChosenVal(1, 3);
 
     if ( chosenValue == 3){
         cout << "Good bye\n";
@@ -76,7 +82,7 @@ void mainMenu(){
     cout << "1. New game\n";
     cout << "2. Check high score\n";
     cout << "3. Exit\n";
-    cout << "Enter value\n";
+    cout << "Enter value: ";
 }
 
 void clearScreen(){
@@ -95,13 +101,13 @@ int readValue(){
     cin.getline(s, 1000);
 
     if(s[1] != '\0'){
-        cout << "entered value is not a digit, retype value u fucking pleb\n";
+        cout << "entered value is not a digit, retype value u fucking pleb: ";
         readValue();
     } else {
         if(s[0] >= '0' && s[0] <= '9' ){
             return s[0] - '0';
         } else {
-            cout << "entered value is not a digit, retype value u fucking pleb\n";
+            cout << "entered value is not a digit, retype value u fucking pleb: ";
             readValue();
         }
     }
@@ -115,6 +121,7 @@ void readPlayerName(Player& participant){
 
 void setPlayerMoney(int i){
     playersArray[i].playerCurrentMoney = PLAYER_MIN_START_SUM;
+    playersArray[i].playerMaximumEverMoney = PLAYER_MIN_START_SUM;
 }
 
 void choseGame(){
@@ -122,10 +129,7 @@ void choseGame(){
     cout << "1. Single player\n";
     cout << "2. Multiplayer\n";
 
-    int chosenValue;
-    do{
-        chosenValue = readValue();
-    }while(chosenValue >= 2 && chosenValue <= 1);
+    int chosenValue = getChosenVal(1, 2);
     playGame(chosenValue);
 
 }
@@ -153,6 +157,7 @@ void playGame(int typeOfGame){
         readPlayerName(playersArray[i]);
         setPlayerMoney(i);
         playersArray[i].cardsStackTop = -1;
+        playersArray[i].currentBet = 0;
 
     }
 
@@ -181,19 +186,21 @@ void giveFirstCards(Player& participant){
 
     int i;
     for(i = 0; i < 2; ++i){
-
-        int randomCard;
-        do{
-            randomCard = rand()%14 + 1;
-        }while(blackJackDeck[randomCard] >= randomCard*4);
-
-        participant.cardsStack[++participant.cardsStackTop] = randomCard;
-        blackJackDeck[randomCard]++;
-
+        addCard(participant);
     }
 
-
 }
+
+void addCard(Player& participant){
+    int randomCard;
+    do{
+        randomCard = rand()%13 + 1;
+    }while(blackJackDeck[randomCard] >= randomCard*4);
+
+    participant.cardsStack[++participant.cardsStackTop] = randomCard;
+    blackJackDeck[randomCard]++;
+}
+
 
 void reset(int numOfPlayers){
     int i;
@@ -224,13 +231,23 @@ bool isOver(int numberOfPlayers){
 
 void showCards(Player participant){
 
-    cout << "Dealer's shown card: " << playersArray[0].cardsStack[0] << '\n';
+    cout << "Dealer's shown card: ";
+    showCardLetterOrDigit(playersArray[0].cardsStack[0]);
+    cout << '\n';
+
     cout << participant.name << "'s cards: ";
 
     int i;
     for(i = 0; i <= participant.cardsStackTop; ++i){
+        showCardLetterOrDigit(participant.cardsStack[i]);
+    }
 
-        switch(participant.cardsStack[i]){
+    cout <<'\n';
+
+}
+
+void showCardLetterOrDigit(int cardValue){
+     switch(cardValue){
         case 1:
             cout << "A ";
             break;
@@ -244,14 +261,9 @@ void showCards(Player participant){
             cout << "K ";
             break;
         default:
-            cout << participant.cardsStack[i] << " ";
+            cout << cardValue << " ";
             break;
-        }
-
     }
-
-    cout <<'\n';
-
 }
 
 void decisionMenu(){
@@ -266,10 +278,93 @@ void decisionMenu(){
 
 void playHand(Player& participant){
 
+     placeBets(participant);
+
      showCards(participant);
+
+     participant.cardSum = calculateSumOfCards(participant);
+
+     if( participant.cardSum == 21 ){
+        cout << participant.name << " hit a blackjack ";
+        return;
+     }
 
      decisionMenu();
 
+     int chosenVal = getChosenVal(1, 5);
+
 }
 
+int getChosenVal(int left, int right){
+    int chosenVal;
+    bool firstTime = true;
+    do{
+        if(firstTime != true){
+            cout << "You entered a wrong value, please retype the value: ";
+        }
+        firstTime = false;
+        chosenVal = readValue();
+    }while(chosenVal > right || chosenVal < left);
+    return chosenVal;
 
+
+}
+
+void hitDecision(Player& participant){
+
+    addCard(participant);
+    showCards(participant);
+    participant.cardSum = calculateSumOfCards(participant);
+
+}
+
+int calculateSumOfCards(Player participant){
+    int i, softHand = 0, hardHand = 0;
+    for(i = 0; i <= participant.cardsStackTop; ++i){
+        if(participant.cardsStack[i] > 10){
+            softHand += 10;
+            hardHand += 10;
+        } else if(participant.cardsStack[i] == 1){
+            softHand += 1;
+            hardHand += 11;
+        } else {
+            softHand += participant.cardsStack[i];
+            hardHand += participant.cardsStack[i];
+        }
+    }
+
+    if(hardHand > 21){
+        return softHand;
+    }
+    return hardHand;
+}
+
+void placeBets(Player& participant){
+
+    cout << participant.name << ' ' << "your bet is:\n";
+
+    cout << "1. 10$\n";
+    cout << "2. 25$\n";
+    cout << "3. 50$\n";
+    cout << "4. 100$\n";
+    cout << "5. 200$\n";
+
+    cout << "Enter bet value:\n";
+
+    int chosenValue;
+    bool isBetable = false;
+
+    while(!isBetable){
+        isBetable = true;
+        chosenValue = getChosenVal(1, 5);
+        if(participant.playerCurrentMoney < bets[chosenValue]){
+            cout << "You don't really have money for this bet, please retype the bloody bet, pleb: ";
+            isBetable = false;
+        }
+    }
+
+
+    participant.currentBet = bets[chosenValue];
+    participant.playerCurrentMoney -= participant.currentBet;
+
+}
