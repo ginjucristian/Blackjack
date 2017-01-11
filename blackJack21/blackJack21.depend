@@ -1,0 +1,9 @@
+# depslib dependency file v1.0
+1484141565 source:c:\users\cosmin\desktop\andrei{}\blackjack21\main.cpp
+	<iostream>
+	<cstdlib>
+
+1484141565 source:e:\fac\ip\blackjack\blackjack21\main.cpp
+	<iostream>
+	<cstdlib>
+
