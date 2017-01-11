@@ -1,19 +1,29 @@
 #include <iostream>
 #include <cstdlib>
+#include <ctime>
 
 #define MAX_PLAYER_NAME_LENGTH 1000
 #define NUMBER_OF_DECKS 1
 #define MAX_PLAYERS_AT_TABLE 3
 #define PLAYER_MIN_START_SUM 100
+#define MAX_POSSIBLE_CARDS_FOR_A_BLACKJACK 11
 
 using namespace std;
 
 struct Player{
     char name[MAX_PLAYER_NAME_LENGTH];
-    int suma;
+    int playerCurrentMoney;
+    int playerMaximumEverMoney;
+
+    int cardsStack[MAX_POSSIBLE_CARDS_FOR_A_BLACKJACK];
+    int cardsStackTop;
+
+    int cardSum;
+
 };
 int blackJackDeck[14];
 Player playersArray[MAX_PLAYERS_AT_TABLE];
+bool playersOut[MAX_PLAYERS_AT_TABLE];
 
 void mainMenu();
 void clearScreen();
@@ -21,13 +31,26 @@ int readValue();
 
 
 void choseGame();
+
 void playGame(int);
-void playerGame();
+void playHand(Player&);
+
 void readPlayerName(Player&);
 void setPlayerMoney(int i);
 
+void giveCards(Player&);
+
+void reset(int numOfPlayers);
+void resetStack(Player& participant);
+void giveFirstCards(Player& participant);
+
+bool isOver(int numberOfPlayers);
+
+
 int main()
 {
+    srand(time(NULL));
+
     mainMenu();
 
     int chosenValue = readValue();
@@ -91,7 +114,7 @@ void readPlayerName(Player& participant){
 }
 
 void setPlayerMoney(int i){
-    playersArray[i].suma = PLAYER_MIN_START_SUM;
+    playersArray[i].playerCurrentMoney = PLAYER_MIN_START_SUM;
 }
 
 void choseGame(){
@@ -129,18 +152,124 @@ void playGame(int typeOfGame){
 
         readPlayerName(playersArray[i]);
         setPlayerMoney(i);
+        playersArray[i].cardsStackTop = -1;
 
     }
 
-    for(i = 1; i <= numberOfPlayers; ++i){
-        playerGame();
+    while(isOver(numberOfPlayers) == false){
+
+        reset(numberOfPlayers);
+
+        for(i = 0; i <= numberOfPlayers; ++i){
+            giveFirstCards(playersArray[i]);
+        }
+
+        for(i = 1; i <= numberOfPlayers; ++i){
+            playHand(playersArray[i]);
+            playersOut[i] = true;
+        }
+
+    }
+
+
+
+
+}
+
+
+void giveFirstCards(Player& participant){
+
+    int i;
+    for(i = 0; i < 2; ++i){
+
+        int randomCard;
+        do{
+            randomCard = rand()%14 + 1;
+        }while(blackJackDeck[randomCard] >= randomCard*4);
+
+        participant.cardsStack[++participant.cardsStackTop] = randomCard;
+        blackJackDeck[randomCard]++;
+
+    }
+
+
+}
+
+void reset(int numOfPlayers){
+    int i;
+    for(i = 0; i < numOfPlayers; ++i){
+        resetStack(playersArray[i]);
+    }
+
+    for(i = 1; i <= 13; ++i){
+        blackJackDeck[i] = 0;
+    }
+
+
+}
+
+void resetStack(Player& participant){
+
+    while(participant.cardsStackTop >= 0){
+        participant.cardsStack[participant.cardsStackTop--] = 0;
     }
 
 }
 
-void playerGame(){
+bool isOver(int numberOfPlayers){
+    int i;
+    for(i = 1; i <= numberOfPlayers && playersOut[i]; ++i);
+    return i > numberOfPlayers;
+}
+
+void showCards(Player participant){
+
+    cout << "Dealer's shown card: " << playersArray[0].cardsStack[0] << '\n';
+    cout << participant.name << "'s cards: ";
+
+    int i;
+    for(i = 0; i <= participant.cardsStackTop; ++i){
+
+        switch(participant.cardsStack[i]){
+        case 1:
+            cout << "A ";
+            break;
+        case 11:
+            cout << "J ";
+            break;
+        case 12:
+            cout << "Q ";
+            break;
+        case 13:
+            cout << "K ";
+            break;
+        default:
+            cout << participant.cardsStack[i] << " ";
+            break;
+        }
+
+    }
+
+    cout <<'\n';
 
 }
 
+void decisionMenu(){
+
+    cout << "1. Hit\n";
+    cout << "2. Stand\n";
+    cout << "3. Double down\n";
+    cout << "4. Split\n";
+    cout << "5. Surrender\n";
+
+}
+
+void playHand(Player& participant){
+
+     showCards(participant);
+
+     decisionMenu();
+
+}
 
 
