@@ -49,9 +49,17 @@ void giveFirstCards(Player&);
 void addCard(Player&);
 void placeBets(Player&);
 
+void hitDecision(Player&);
+void doubleDownDecision(Player&);
+
 bool isOver(int);
 int calculateSumOfCards(Player);
 void showCardLetterOrDigit(int);
+
+bool checkBusted(Player);
+bool checkBlackJack(Player);
+bool playerWon(Player);
+
 
 int main()
 {
@@ -157,7 +165,6 @@ void playGame(int typeOfGame){
         readPlayerName(playersArray[i]);
         setPlayerMoney(i);
         playersArray[i].cardsStackTop = -1;
-        playersArray[i].currentBet = 0;
 
     }
 
@@ -171,6 +178,7 @@ void playGame(int typeOfGame){
 
         for(i = 1; i <= numberOfPlayers; ++i){
             playHand(playersArray[i]);
+            clearScreen();
             playersOut[i] = true;
         }
 
@@ -206,11 +214,13 @@ void reset(int numOfPlayers){
     int i;
     for(i = 0; i < numOfPlayers; ++i){
         resetStack(playersArray[i]);
+        playersArray[i].currentBet = 0;
     }
 
     for(i = 1; i <= 13; ++i){
         blackJackDeck[i] = 0;
     }
+
 
 
 }
@@ -276,6 +286,18 @@ void decisionMenu(){
 
 }
 
+bool checkBusted(Player participant){
+    return participant.cardSum > 21;
+}
+
+bool checkBlackJack(Player participant){
+    return participant.cardSum == 21;
+}
+
+bool playerWon(Player participant){
+   return participant.cardSum > playersArray[0].cardSum;
+}
+
 void playHand(Player& participant){
 
      placeBets(participant);
@@ -284,16 +306,75 @@ void playHand(Player& participant){
 
      participant.cardSum = calculateSumOfCards(participant);
 
-     if( participant.cardSum == 21 ){
+     if( checkBlackJack(participant)){
         cout << participant.name << " hit a blackjack ";
         return;
      }
 
      decisionMenu();
 
-     int chosenVal = getChosenVal(1, 5);
+     int chosenVal;
+     while(chosenVal != 2){
+        chosenVal = getChosenVal(1, 5);
+        if(chosenVal == 1){
+            hitDecision(participant);
+            if(checkBusted(participant)){
+                cout << "Player " << participant.name << " is BUSTED";
+                return;
+            }
+            if(checkBlackJack(participant)){
+                cout << "Player " << participant.name << " hit a blackjack";
+                return;
+            }
+        }
+        if(chosenVal == 3){
+            doubleDownDecision(participant);
+            if(checkBusted(participant)){
+                cout << "Player " << participant.name << " is BUSTED";
+            }
+            if(checkBlackJack(participant)){
+                cout << "Player " << participant.name << " hit a blackjack";
+            }
+            return;
+        }
+
+
+        decisionMenu();
+
+     }
+
 
 }
+
+void doubleDownDecision(Player& participant){
+
+    cout << "Player " << participant.name << " chose to double down\n";
+
+    if(participant.cardsStackTop > 1){
+        cout << "You cannot double down, sorry\n";
+        return;
+    }
+
+    if(participant.playerCurrentMoney - participant.currentBet < 0 ){
+        cout << "You do not have the money for a double down\n";
+        return;
+    }
+
+    addCard(participant);
+    participant.playerCurrentMoney -= participant.currentBet;
+    participant.currentBet *= 2;
+    participant.cardSum = calculateSumOfCards(participant);
+
+    showCards(participant);
+
+}
+
+void split(Player& participant){
+
+}
+
+
+
 
 int getChosenVal(int left, int right){
     int chosenVal;
@@ -311,6 +392,8 @@ int getChosenVal(int left, int right){
 }
 
 void hitDecision(Player& participant){
+
+    cout << participant.name << " decided to hit, his cards are: " << '\n';
 
     addCard(participant);
     showCards(participant);
