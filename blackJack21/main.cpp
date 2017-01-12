@@ -10,7 +10,8 @@
 
 using namespace std;
 
-struct Player{
+struct Player {
+
     char name[MAX_PLAYER_NAME_LENGTH];
     int playerCurrentMoney;
     int playerMaximumEverMoney;
@@ -22,10 +23,11 @@ struct Player{
     int cardSum;
 
     bool hasSplit;
+    bool hasSurrendered;
 
     int cardSumOnSplit[2];
-
 };
+
 int blackJackDeck[14];
 Player playersArray[MAX_PLAYERS_AT_TABLE];
 bool playersOut[MAX_PLAYERS_AT_TABLE];
@@ -54,8 +56,8 @@ void addCard(Player&);
 void placeBets(Player&);
 
 void hitDecision(Player&);
-void doubleDownDecision(Player&);
-void splitDecision(Player&);
+bool doubleDownDecision(Player&);
+bool splitDecision(Player&);
 
 bool isOver(int);
 int calculateSumOfCards(Player);
@@ -66,12 +68,18 @@ bool checkBusted(Player);
 bool checkBlackJack(Player);
 bool playerWon(Player);
 
+void playerBusted(Player);
+void playerBlackJack(Player);
+
 void playLoop(Player&);
 void dealerGame(int);
 void showDealersCards();
 
-int main()
-{
+void showCurrentMoney(Player participant) {
+    cout << participant.name << " has " << participant.playerCurrentMoney << "$ \n";
+}
+
+int main() {
 
     srand(time(NULL));
 
@@ -79,12 +87,12 @@ int main()
 
     int chosenValue = getChosenVal(1, 3);
 
-    if ( chosenValue == 3){
+    if ( chosenValue == 3) {
         cout << "Good bye\n";
         return 0;
     }
 
-    if( chosenValue == 1 ){
+    if( chosenValue == 1 ) {
         clearScreen();
         choseGame();
     }
@@ -95,15 +103,15 @@ int main()
 }
 
 
-void mainMenu(){
+void mainMenu() {
 
     cout << "1. New game\n";
-    cout << "2. Check high score\n";
+    cout << "2. Check high scores\n";
     cout << "3. Exit\n";
     cout << "Enter value: ";
 }
 
-void clearScreen(){
+void clearScreen() {
 #ifdef __linux
     system("clear");
 #elif _WIN32
@@ -113,16 +121,16 @@ void clearScreen(){
 #endif
 }
 
-int readValue(){
+int readValue() {
 
     char s[1000];
     cin.getline(s, 1000);
 
-    if(s[1] != '\0'){
+    if(s[1] != '\0') {
         cout << "entered value is not a digit, retype value u fucking pleb: ";
         readValue();
     } else {
-        if(s[0] >= '0' && s[0] <= '9' ){
+        if(s[0] >= '0' && s[0] <= '9' ) {
             return s[0] - '0';
         } else {
             cout << "entered value is not a digit, retype value u fucking pleb: ";
@@ -132,17 +140,17 @@ int readValue(){
 
 }
 
-void readPlayerName(Player& participant){
+void readPlayerName(Player& participant) {
     cout << "Your name is: ";
     cin.getline(participant.name, MAX_PLAYER_NAME_LENGTH);
 }
 
-void setPlayerMoney(int i){
+void setPlayerMoney(int i) {
     playersArray[i].playerCurrentMoney = PLAYER_MIN_START_SUM;
     playersArray[i].playerMaximumEverMoney = PLAYER_MIN_START_SUM;
 }
 
-void choseGame(){
+void choseGame() {
 
     cout << "1. Single player\n";
     cout << "2. Multiplayer\n";
@@ -152,25 +160,25 @@ void choseGame(){
 
 }
 
-void playGame(int typeOfGame){
+void playGame(int typeOfGame) {
 
     int numberOfPlayers, i;
 
-    if(typeOfGame == 1){
+    if(typeOfGame == 1) {
         numberOfPlayers = 1;
     }
 
-    if(typeOfGame == 2){
+    if(typeOfGame == 2) {
         int value;
-        do{
+        do {
             cout << "number of players: ";
             value = readValue();
             cout << '\n';
-        }while(value > MAX_PLAYERS_AT_TABLE-1 || value <= 1);
+        } while(value > MAX_PLAYERS_AT_TABLE-1 || value <= 1);
         numberOfPlayers = value;
     }
 
-    for(i = 1; i <= numberOfPlayers; ++i){
+    for(i = 1; i <= numberOfPlayers; ++i) {
 
         readPlayerName(playersArray[i]);
         setPlayerMoney(i);
@@ -178,7 +186,7 @@ void playGame(int typeOfGame){
 
     }
 
-    while(isOver(numberOfPlayers) == false){
+    while(isOver(numberOfPlayers) == false) {
 
         reset(numberOfPlayers);
 
@@ -188,28 +196,24 @@ void playGame(int typeOfGame){
 
 
 
-
-        for(i = 1; i <= numberOfPlayers; ++i){
+        for(i = 1; i <= numberOfPlayers; ++i) {
             playHand(playersArray[i]);
             //clearScreen();
+
             playersOut[i] = true;
         }
 
         dealerGame(numberOfPlayers);
-
+        showCurrentMoney(playersArray[1]);
     }
-
-
-
-
 }
 
-void dealerGame(int numberOfPlayers){
+void dealerGame(int numberOfPlayers) {
 
     showDealersCards();
-    int i;
+    int i, j;
     playersArray[0].cardSum = calculateSumOfCards(playersArray[0]);
-    while(playersArray[0].cardSum < 17){
+    while(playersArray[0].cardSum < 17) {
 
         addCard(playersArray[0]);
         playersArray[0].cardSum = calculateSumOfCards(playersArray[0]);
@@ -217,238 +221,299 @@ void dealerGame(int numberOfPlayers){
 
     }
 
-    if(numberOfPlayers == 1){
-       if(playerWon(playersArray[1]) && !checkBlackJack(playersArray[1])){
+    if(numberOfPlayers == 1) {
+        if(playerWon(playersArray[1]) && !checkBlackJack(playersArray[1])) {
             addCard(playersArray[0]);
-       }
+        }
     }
 
-    for(i = 1; i <= numberOfPlayers; ++i){
+    for(i = 1; i <= numberOfPlayers; ++i) {
 
-        if(playersArray[i].hasSplit){
-            if(playersArray[i].cardSumOnSplit[0] <= 21 && playersArray[i].cardSumOnSplit[0] > playersArray[0].cardSum ){
-                playersArray[i].playerCurrentMoney += playersArray[i].currentBet / 2;
-                playersArray[i].currentBet /= 2;
-                cout << playersArray[i].name << " won " << playersArray[i].currentBet/2 << "$\n";
-            } else {
-                cout << "Dealer won " << playersArray[i].currentBet/2 << "$ from " << playersArray[i].name << '\n';
+        if(playersArray[i].hasSplit) {
+            for(j = 0; j < 2; ++j) {
+                if(playersArray[i].cardSumOnSplit[j] <= 21 && (playersArray[i].cardSumOnSplit[j] > playersArray[0].cardSum || playersArray[0].cardSum  > 21)  ) {
+                    playersArray[i].playerCurrentMoney += playersArray[i].currentBet;
+                    cout << playersArray[i].name << " won " << playersArray[i].currentBet / 2 << "$\n";
+                } else {
+                    cout << "Dealer won " << playersArray[i].currentBet/2 << "$ from " << playersArray[i].name << '\n';
+                }
             }
-            if(playersArray[i].cardSumOnSplit[1] <= 21 && playersArray[i].cardSumOnSplit[1] > playersArray[0].cardSum ){
-                playersArray[i].playerCurrentMoney += playersArray[i].currentBet / 2;
-                playersArray[i].currentBet /= 2;
-                cout << playersArray[i].name << " won " << playersArray[i].currentBet/2 << "$\n";
-            } else {
-                cout << "Dealer won " << playersArray[i].currentBet/2 << "$ from " << playersArray[i].name;
-            }
-        } else{
-            if(playerWon(playersArray[i])){
+        } else if(playersArray[i].hasSurrendered) {
+            cout << "Dealer won " << playersArray[i].currentBet<< "$ from " << playersArray[i].name << '\n';
+        } else {
+            if(playerWon(playersArray[i])) {
                 playersArray[i].playerCurrentMoney += 2*playersArray[i].currentBet;
                 cout << playersArray[i].name << " won " << playersArray[i].currentBet << "$\n";
             } else {
                 cout << "Dealer won " << playersArray[i].currentBet << "$ from " << playersArray[i].name << '\n';
             }
         }
+
+        if(playersArray[i].playerCurrentMoney > playersArray[i].playerMaximumEverMoney) {
+            playersArray[i].playerMaximumEverMoney = playersArray[i].playerCurrentMoney;
+        }
+
         playersArray[i].currentBet = 0;
+
     }
 
 }
 
 
-void showDealersCards(){
+void showDealersCards() {
     cout << "Dealer's cards: ";
     int i;
-    for(i = 0; i <= playersArray[0].cardsStackTop; ++i){
+    for(i = 0; i <= playersArray[0].cardsStackTop; ++i) {
         showCardLetterOrDigit(playersArray[0].cardsStack[i]);
     }
     cout << '\n';
 }
 
-void giveFirstCards(Player& participant){
+void giveFirstCards(Player& participant) {
 
     int i;
-    for(i = 0; i < 2; ++i){
+    for(i = 0; i < 2; ++i) {
         addCard(participant);
     }
 
 }
 
-void addCard(Player& participant){
+void addCard(Player& participant) {
     int randomCard;
-    do{
+    do {
         randomCard = rand()%13 + 1;
-    }while(blackJackDeck[randomCard] >= randomCard*4);
+    } while(blackJackDeck[randomCard] >= randomCard*4);
 
     participant.cardsStack[++participant.cardsStackTop] = randomCard;
     blackJackDeck[randomCard]++;
 }
 
 
-void reset(int numOfPlayers){
+void reset(int numOfPlayers) {
     int i;
-    for(i = 0; i < numOfPlayers; ++i){
+    for(i = 0; i < numOfPlayers; ++i) {
         resetStack(playersArray[i]);
         playersArray[i].currentBet = 0;
     }
 
-    for(i = 1; i <= 13; ++i){
+    for(i = 1; i <= 13; ++i) {
         blackJackDeck[i] = 0;
     }
-
-
-
 }
 
-void resetStack(Player& participant){
+void resetStack(Player& participant) {
 
-    while(participant.cardsStackTop >= 0){
+    while(participant.cardsStackTop >= 0) {
         participant.cardsStack[participant.cardsStackTop--] = 0;
     }
 
 }
 
-bool isOver(int numberOfPlayers){
+bool isOver(int numberOfPlayers) {
     int i;
     for(i = 1; i <= numberOfPlayers && playersOut[i]; ++i);
     return i > numberOfPlayers;
 }
 
-void showCards(Player participant){
-
+void getDealerShownCard() {
+    cout << "\n";
     cout << "Dealer's shown card: ";
     showCardLetterOrDigit(playersArray[0].cardsStack[0]);
-    cout << '\n';
+    cout << "\n\n";
+}
+
+void showCards(Player participant) {
+
+    cout <<"\n";
 
     cout << participant.name << "'s cards: ";
 
     int i;
-    for(i = 0; i <= participant.cardsStackTop; ++i){
+    for(i = 0; i <= participant.cardsStackTop; ++i) {
         showCardLetterOrDigit(participant.cardsStack[i]);
     }
 
-    cout <<'\n';
+    cout <<"\n\n";
 
 }
 
-void showCardLetterOrDigit(int cardValue){
-     switch(cardValue){
-        case 1:
-            cout << "A ";
-            break;
-        case 11:
-            cout << "J ";
-            break;
-        case 12:
-            cout << "Q ";
-            break;
-        case 13:
-            cout << "K ";
-            break;
-        default:
-            cout << cardValue << " ";
-            break;
+void showCardLetterOrDigit(int cardValue) {
+    switch(cardValue) {
+    case 1:
+        cout << "A ";
+        break;
+    case 11:
+        cout << "J ";
+        break;
+    case 12:
+        cout << "Q ";
+        break;
+    case 13:
+        cout << "K ";
+        break;
+    default:
+        cout << cardValue << " ";
+        break;
     }
 }
 
-void decisionMenu(){
+void decisionMenu() {
 
     cout << "1. Hit\n";
     cout << "2. Stand\n";
     cout << "3. Double down\n";
     cout << "4. Split\n";
     cout << "5. Surrender\n";
+    cout << "6. Show cards\n";
+    cout << "7. Get dealer's shown cards\n";
+    cout << "8. Show decision menu\n\n";
+
 
 }
 
-bool checkBusted(Player participant){
+bool checkBusted(Player participant) {
     return participant.cardSum > 21;
 }
 
-bool checkBlackJack(Player participant){
+
+bool checkBlackJack(Player participant) {
     return participant.cardSum == 21;
 }
 
-bool playerWon(Player participant){
-   return (participant.cardSum > playersArray[0].cardSum || playersArray[0].cardSum > 21) && !checkBusted(participant);
+bool playerWon(Player participant) {
+    return (participant.cardSum > playersArray[0].cardSum || playersArray[0].cardSum > 21) && !checkBusted(participant);
 }
 
-void playHand(Player& participant){
+void playerBusted(Player participant) {
 
-     placeBets(participant);
-
-     showCards(participant);
-
-     playLoop(participant);
+    cout << "Player " << participant.name << " is BUSTED\n";
+    showCards(participant);
 
 }
 
-void playLoop(Player& participant){
+void playerBlackJack(Player participant) {
 
-     participant.cardSum = calculateSumOfCards(participant);
-
-     if( checkBlackJack(participant) ){
-        cout << participant.name << " hit a blackjack ";
-        return;
-     }
-
-     decisionMenu();
-
-     int chosenVal = -1;
-     while(chosenVal != 2){
-        chosenVal = getChosenVal(1, 5);
-        if(chosenVal == 1){
-            hitDecision(participant);
-            if(checkBusted(participant)){
-                cout << "Player " << participant.name << " is BUSTED\n";
-                return;
-            }
-            if(checkBlackJack(participant)){
-                cout << "Player " << participant.name << " hit a blackjack\n";
-                return;
-            }
-        }
-        if(chosenVal == 3){
-            doubleDownDecision(participant);
-            if(checkBusted(participant)){
-                cout << "Player " << participant.name << " is BUSTED\n";
-            }
-            if(checkBlackJack(participant)){
-                cout << "Player " << participant.name << " hit a blackjack\n";
-            }
-            return;
-        }
-        if(chosenVal == 4){
-            splitDecision(participant);
-            return;
-        }
-
-        if(chosenVal == 5){
-            surrenderDecision(participant);
-            return;
-        }
-
-        if(chosenVal != 2){
-            decisionMenu();
-        }
-
-
-
-
-     }
+    cout << "Player " << participant.name << " hit 21\n";
+   showCards(participant);
 
 }
 
-void doubleDownDecision(Player& participant){
+void playHand(Player& participant) {
 
-    cout << "Player " << participant.name << " chose to double down\n";
+    placeBets(participant);
+    playLoop(participant);
 
-    if(participant.cardsStackTop > 1){
-        cout << "You cannot double down, sorry\n";
+}
+
+void playLoop(Player& participant) {
+
+    participant.cardSum = calculateSumOfCards(participant);
+
+    if( checkBlackJack(participant) ) {
+        playerBlackJack(participant);
         return;
     }
 
-    if(participant.playerCurrentMoney - participant.currentBet < 0 ){
+    int chosenVal = -1;
+    bool gameIsOver = false;
+
+    if(!participant.hasSplit) {
+        showCards(participant);
+        decisionMenu();
+    }
+
+
+
+    while(!gameIsOver) {
+
+        cout << "Choose menu value: ";
+
+
+        chosenVal = getChosenVal(1, 7);
+
+        cout <<"\n";
+
+        if(chosenVal == 2) {
+            gameIsOver = true;
+        }
+
+        if(chosenVal == 1) {
+            hitDecision(participant);
+
+            if(checkBusted(participant)) {
+                playerBusted(participant);
+                gameIsOver = true;
+            }
+
+            if(checkBlackJack(participant)) {
+                playerBlackJack(participant);
+                gameIsOver = true;
+            }
+        }
+        if(chosenVal == 3 && doubleDownDecision(participant)) {
+
+            if(checkBusted(participant)) {
+                playerBusted(participant);
+            }
+
+            if(checkBlackJack(participant)) {
+                playerBlackJack(participant);
+            }
+
+            gameIsOver = true;
+
+        }
+
+        if(chosenVal == 4) {
+            if(!participant.hasSplit) {
+                if(splitDecision(participant)) {
+                    gameIsOver = true;
+                }
+            } else {
+                cout << "You cannot split\n";
+            }
+        }
+
+        if(chosenVal == 5) {
+            if(!participant.hasSplit) {
+                surrenderDecision(participant);
+                gameIsOver = true;
+            } else {
+                cout << "You cannot surrender\n";
+            }
+
+        }
+
+        if(chosenVal == 8) {
+            decisionMenu();
+        }
+
+        if(chosenVal == 6) {
+            showCards(participant);
+        }
+
+        if(chosenVal == 7) {
+            getDealerShownCard();
+        }
+
+    }
+
+
+
+}
+
+bool doubleDownDecision(Player& participant) {
+
+    cout << "Player " << participant.name << " chose to double down\n";
+
+    if(participant.cardsStackTop > 1) {
+        cout << "You cannot double down, sorry\n";
+        return false;
+    }
+
+    if(participant.playerCurrentMoney - participant.currentBet < 0 ) {
         cout << "You do not have the money for a double down\n";
-        return;
+        return false;
     }
 
     addCard(participant);
@@ -456,96 +521,117 @@ void doubleDownDecision(Player& participant){
     participant.currentBet *= 2;
     participant.cardSum = calculateSumOfCards(participant);
 
-    showCards(participant);
-
+    return true;
 }
 
-void splitDecision(Player& participant){
+bool splitDecision(Player& participant) {
 
     cout << "Player " << participant.name << " " << " decided to split\n";
 
 
-    if(participant.cardsStack[0] != participant.cardsStack[1] || participant.cardsStackTop > 1 || participant.hasSplit){
+    if(participant.cardsStack[0] != participant.cardsStack[1] || participant.cardsStackTop > 1 || participant.hasSplit) {
         cout << "You cannot split\n";
-        return;
+        return false;
     }
 
-    if(participant.playerCurrentMoney - participant.currentBet < 0){
+    if(participant.playerCurrentMoney - participant.currentBet < 0) {
         cout << "You do not have enough money to split\n";
-        return;
+        return false;
     }
 
     participant.hasSplit = true;
-
+    participant.playerCurrentMoney  -= participant.currentBet;
+    participant.currentBet *= 2;
     int baseOfNextStack = participant.cardsStack[participant.cardsStackTop--];
 
+    if(participant.cardsStack[0] == 1) {
+
+        cout << "-----FIRST STACK----\n";
+        addCard(participant);
+        participant.cardSumOnSplit[0] = calculateSumOfCards(participant);
+
+        showCards(participant);
+        resetStack(participant);
+
+        cout << "-----SECOND STACK----\n";
+        participant.cardsStack[++participant.cardsStackTop] = baseOfNextStack;
+        addCard(participant);
+        participant.cardSumOnSplit[1] = calculateSumOfCards(participant);
+
+        showCards(participant);
+        resetStack(participant);
+
+        return true;
+    }
+
+    cout << "-----FIRST STACK----\n";
+
+
+
     addCard(participant);
-    showCards(participant);
-
-    participant.hasSplit = true;
-
     playLoop(participant);
     participant.cardSumOnSplit[0] = participant.cardSum;
-
     resetStack(participant);
+
+    cout << "-----SECOND STACK----\n";
 
     participant.cardsStack[++participant.cardsStackTop] = baseOfNextStack;
     addCard(participant);
-
-    cout << "-----Split----\n";
-    showCards(participant);
-
-
     playLoop(participant);
     participant.cardSumOnSplit[1] = participant.cardSum;
 
+    return true;
+
 }
 
-void surrenderDecision(Player& participant){
+void surrenderDecision(Player& participant) {
 
-    if(participant.cardsStackTop > 1){
+    if(participant.cardsStackTop > 1 || participant.hasSplit) {
         cout << "You cannot surrender\n";
         return;
     }
 
-    participant.playerCurrentMoney += participant.currentBet /= 2;
+    participant.playerCurrentMoney += participant.currentBet / 2;
+    participant.currentBet /= 2;
+
+    participant.hasSurrendered = true;
 
 }
 
 
 
-int getChosenVal(int left, int right){
+int getChosenVal(int left, int right) {
     int chosenVal;
     bool firstTime = true;
-    do{
-        if(firstTime != true){
+    do {
+        if(firstTime != true) {
             cout << "You entered a wrong value, please retype the value: ";
         }
         firstTime = false;
         chosenVal = readValue();
-    }while(chosenVal > right || chosenVal < left);
+    } while(chosenVal > right || chosenVal < left);
     return chosenVal;
 
 
 }
 
-void hitDecision(Player& participant){
+void hitDecision(Player& participant) {
 
-    cout << participant.name << " decided to hit, his cards are: " << '\n';
+    cout << '\n' << participant.name << " decided to hit " << '\n';
 
     addCard(participant);
-    showCards(participant);
     participant.cardSum = calculateSumOfCards(participant);
+    showCards(participant);
 
 }
 
-int calculateSumOfCards(Player participant){
+int calculateSumOfCards(Player participant) {
     int i, softHand = 0, hardHand = 0;
-    for(i = 0; i <= participant.cardsStackTop; ++i){
-        if(participant.cardsStack[i] > 10){
+    for(i = 0; i <= participant.cardsStackTop; ++i) {
+        if(participant.cardsStack[i] > 10) {
             softHand += 10;
             hardHand += 10;
-        } else if(participant.cardsStack[i] == 1){
+        } else if(participant.cardsStack[i] == 1) {
             softHand += 1;
             hardHand += 11;
         } else {
@@ -554,13 +640,13 @@ int calculateSumOfCards(Player participant){
         }
     }
 
-    if(hardHand > 21){
+    if(hardHand > 21) {
         return softHand;
     }
     return hardHand;
 }
 
-void placeBets(Player& participant){
+void placeBets(Player& participant) {
 
     cout << participant.name << ' ' << "your bet is:\n";
 
@@ -570,15 +656,15 @@ void placeBets(Player& participant){
     cout << "4. 100$\n";
     cout << "5. 200$\n";
 
-    cout << "Enter bet value:\n";
+    cout << "Enter bet value: ";
 
     int chosenValue;
     bool isBetable = false;
 
-    while(!isBetable){
+    while(!isBetable) {
         isBetable = true;
         chosenValue = getChosenVal(1, 5);
-        if(participant.playerCurrentMoney < bets[chosenValue]){
+        if(participant.playerCurrentMoney < bets[chosenValue]) {
             cout << "You don't really have money for this bet, please retype the bloody bet, pleb: ";
             isBetable = false;
         }
