@@ -3,7 +3,10 @@
 	<iostream>
 	<cstdlib>
 
-1484141565 source:e:\fac\ip\blackjack\blackjack21\main.cpp
+1484336417 source:e:\fac\ip\blackjack\blackjack21\main.cpp
 	<iostream>
+	<fstream>
 	<cstdlib>
+	<ctime>
+	<cstring>
 
